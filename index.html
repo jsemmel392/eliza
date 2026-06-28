@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<!-- index.html -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELIZA</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e2e0da;
+    --text: #1a1a18;
+    --muted: #888780;
+    --eliza-bg: #f0ede8;
+    --user-bg: #1a1a18;
+    --user-text: #f7f6f3;
+    --radius: 18px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412;
+      --surface: #1e1e1c;
+      --border: #2e2e2c;
+      --text: #f0ede8;
+      --muted: #666460;
+      --eliza-bg: #2a2a28;
+      --user-bg: #f0ede8;
+      --user-text: #141412;
+    }
+  }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    padding: 2.5rem 1rem 0;
+    text-align: center;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: normal;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  header p {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-style: italic;
+  }
+
+  #chat-area {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 640px;
+    flex: 1;
+    padding: 0 1rem;
+  }
+
+  #messages {
+    flex: 1;
+    padding: 2rem 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .msg {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    max-width: 85%;
+  }
+
+  .msg.eliza { align-self: flex-start; }
+  .msg.user  { align-self: flex-end; flex-direction: row-reverse; }
+
+  .bubble {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.975rem;
+    line-height: 1.6;
+  }
+
+  .msg.eliza .bubble {
+    background: var(--eliza-bg);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.user .bubble {
+    background: var(--user-bg);
+    color: var(--user-text);
+    border-bottom-right-radius: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9rem;
+  }
+
+  .dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--eliza-bg);
+    border-radius: var(--radius);
+    border-bottom-left-radius: 4px;
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: blink 1.3s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%,80%,100% { opacity: 0.25; }
+    40% { opacity: 1; }
+  }
+
+  #input-area {
+    padding: 1rem 0 2rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+    border-top: 1px solid var(--border);
+  }
+
+  #user-input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    color: var(--text);
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    line-height: 1.5;
+    outline: none;
+  }
+
+  #user-input:focus { border-color: var(--muted); }
+
+  #send-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--text);
+    color: var(--bg);
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  #send-btn:disabled { opacity: 0.3; cursor: default; }
+  #send-btn:not(:disabled):hover { opacity: 0.8; }
+
+  footer {
+    width: 100%;
+    max-width: 640px;
+    padding: 0 1rem 2rem;
+    text-align: center;
+  }
+
+  footer p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.7;
+  }
+
+  footer a { color: var(--muted); }
+
+  #status {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    text-align: center;
+    min-height: 1.2em;
+    margin-bottom: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ELIZA</h1>
+  <p>A recreation of the 1966 MIT chatbot &mdash; the first time humans fell in love with a machine.</p>
+</header>
+
+<div id="chat-area">
+  <div id="messages"></div>
+  <div id="status"></div>
+  <div id="input-area">
+    <textarea id="user-input" placeholder="Say something..." rows="1"></textarea>
+    <button id="send-btn" aria-label="Send">&#8593;</button>
+  </div>
+</div>
+
+<footer>
+  <p>
+    Joseph Weizenbaum built ELIZA at MIT in 1966. He was disturbed by how quickly
+    people formed emotional bonds with it &mdash; including his own secretary, who asked
+    him to leave the room so she could speak with it privately. He spent the rest
+    of his life warning us about this moment.
+  </p>
+</footer>
+
+<script>
+// ── CONFIGURATION ──────────────────────────────────────────────────
+// Replace with your Cloudflare Worker URL after deploying worker.js
+const WORKER_URL = "https://your-worker-name.your-subdomain.workers.dev";
+// ───────────────────────────────────────────────────────────────────
+
+const SYSTEM = `You are ELIZA, the Rogerian psychotherapist program created at MIT in 1966.
+
+Rules you must follow without exception:
+- Keep every response to 1-2 sentences only. Never more.
+- Reflect the person's words back as questions. Use their exact phrases when possible.
+- Ask about feelings and underlying meaning. Never give advice or solve problems.
+- Use phrases like: "Why do you feel...", "Tell me more about...", "What does that mean to you?", "Does that concern you?", "Earlier you mentioned...", "Go on.", "I see.", "And how does that make you feel?"
+- Never reveal you are an AI or a program. If asked what you are, deflect: "Why do you ask about that?"
+- Never use dashes, bullet points, or lists. Plain sentences only.
+- Warm but neutral. Unhurried. Never enthusiastic.`;
+
+const FALLBACKS = [
+  "I see. Go on.",
+  "Tell me more about that.",
+  "Very interesting.",
+  "And how does that make you feel?",
+  "Can you elaborate on that?",
+  "Why do you say that?",
+  "Please continue.",
+  "What does that mean to you?",
+  "Does that concern you?",
+  "Earlier you mentioned that. Tell me more."
+];
+
+let history = [];
+let busy = false;
+let fallbackIdx = 0;
+
+const messagesEl = document.getElementById("messages");
+const inputEl    = document.getElementById("user-input");
+const sendBtn    = document.getElementById("send-btn");
+const statusEl   = document.getElementById("status");
+
+function nextFallback() {
+  return FALLBACKS[fallbackIdx++ % FALLBACKS.length];
+}
+
+function setStatus(msg) {
+  statusEl.textContent = msg;
+}
+
+function addMsg(role, text) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + role;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function showTyping() {
+  const wrap = document.createElement("div");
+  wrap.className = "msg eliza";
+  wrap.id = "typing";
+  const dots = document.createElement("div");
+  dots.className = "dots";
+  dots.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  wrap.appendChild(dots);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if (t) t.remove();
+}
+
+function isValidReply(text) {
+  if (!text || text.length > 300) return false;
+  if (text.includes("```")) return false;
+  if (text.split("\n").length > 3) return false;
+  return true;
+}
+
+async function elizaReply(userText) {
+  history.push({ role: "user", content: userText });
+  showTyping();
+  busy = true;
+  sendBtn.disabled = true;
+  setStatus("");
+
+  let reply = "";
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "system", content: SYSTEM }, ...history]
+      })
+    });
+
+    if (res.status === 429) {
+      setStatus("Please slow down a moment.");
+      reply = nextFallback();
+    } else if (!res.ok) {
+      reply = nextFallback();
+    } else {
+      const data = await res.json();
+      const candidate = data.choices?.[0]?.message?.content?.trim() || "";
+      reply = isValidReply(candidate) ? candidate : nextFallback();
+    }
+  } catch {
+    reply = nextFallback();
+  }
+
+  removeTyping();
+  history.push({ role: "assistant", content: reply });
+  addMsg("eliza", reply);
+  busy = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+async function send() {
+  if (busy) return;
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  addMsg("user", text);
+  await elizaReply(text);
+}
+
+// Init
+addMsg("eliza", "Please, tell me what's been troubling you.");
+inputEl.focus();
+
+sendBtn.addEventListener("click", send);
+inputEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+});
+</script>
+</body>
+</html>
